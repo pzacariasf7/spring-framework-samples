@@ -1,0 +1,158 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/batch
+		http://www.springframework.org/schema/batch/spring-batch-2.2.xsd
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/util
+		http://www.springframework.org/schema/util/spring-util-3.2.xsd">
+	<import resource="applicationContext.xml" />
+	<import resource="applicationContext-db.xml" />
+
+	<bean id="taskEjecutor" class="org.springframework.core.task.SimpleAsyncTaskExecutor"/>
+	<bean id="clienteBean" class="pe.com.entel.regNomBlancoPIAS.bean.ClienteBean"/>
+
+	<!--Configuracion de Jobs-->
+	<batch:job id="regNomBlancoCSV">
+		<batch:step id="stepRegNomBlancoCSV" parent="stepParentRegNomBlancoCSV">
+			<batch:next on="COMPLETED" to="stepSuccessRegNomBlancoCSV"/>
+		</batch:step>
+		<batch:step id="stepSuccessRegNomBlancoCSV">
+			<batch:tasklet ref="taskletSuccessRegNomBlancoCSV"/>
+		</batch:step>
+	</batch:job>
+
+	<batch:job id="regNomBlancoPIAS">
+		<batch:step id="stepRegNomBlancoPIAS" parent="stepParentRegNomBlancoPIAS" />
+	</batch:job>
+
+	<!-- PARENT FILES -->
+	<batch:step id="stepParentRegNomBlancoCSV">
+		<batch:tasklet task-executor="taskEjecutor" throttle-limit="${job.throttle.limit}">
+			<batch:chunk  reader="csvClienteItemReader" processor="clienteItemProcessor" writer="jdbcClienteItemWriter" commit-interval="${job.commit.interval}" skip-limit="${job.skip.limit}">
+				<batch:skippable-exception-classes>
+					<batch:include class="org.springframework.batch.item.ParseException"/>
+				</batch:skippable-exception-classes>
+			</batch:chunk>
+			<batch:listeners>
+				<batch:listener ref="clienteChunkCountListener"/>
+				<batch:listener ref="clienteItemWriterListener"/>
+				<batch:listener ref="clienteItemReaderListener"/>
+			</batch:listeners>
+		</batch:tasklet>
+	</batch:step>
+
+	<batch:step id="stepParentRegNomBlancoPIAS">
+		<batch:tasklet task-executor="taskEjecutor" throttle-limit="${job.throttle.limit}">
+			<batch:chunk  reader="jdbcClienteItemReader" processor="clienteItemProcessor" writer="jdbcClienteItemWriter" commit-interval="${job.commit.interval}" skip-limit="${job.skip.limit}">
+				<batch:skippable-exception-classes>
+					<batch:include class="org.springframework.batch.item.ParseException"/>
+				</batch:skippable-exception-classes>
+			</batch:chunk>
+			<batch:listeners>
+				<batch:listener ref="clienteChunkCountListener"/>
+				<batch:listener ref="clienteItemWriterListener"/>
+				<batch:listener ref="clienteItemReaderListener"/>
+			</batch:listeners>
+		</batch:tasklet>
+	</batch:step>
+
+	<!-- READERS -->
+	<bean id="csvClienteItemReader" class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
+		<property name="linesToSkip" value="1"/>
+		<property name="encoding" value="${job.read.encode}"/>
+		<property name="resource" value="file:#{jobParameters[dirFiles]}/#{jobParameters[fileName]}"/>
+		<property name="lineMapper">
+			<bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+				<property name="lineTokenizer">
+					<bean class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+						<property name="delimiter" value="${token_delimiter}"/>
+						<property name="quoteCharacter" value="${quote_delimiter}"/>
+						<property name="names"
+								  value="TipoDoc,
+										 NumDoc"/>
+					</bean>
+				</property>
+				<property name="fieldSetMapper">
+					<bean class="pe.com.entel.regNomBlancoPIAS.mapper.ClienteFieldSetMapper" />
+				</property>
+			</bean>
+		</property>
+	</bean>
+
+	<bean id="jdbcClienteItemReader" class="org.springframework.batch.item.database.StoredProcedureItemReader" scope="step">
+		<property name="dataSource" ref="dsPias" />
+		<property name="procedureName" value="SWBAPPS.SP_CL_GET_NOM_BLANCO"/>
+		<property name="refCursorPosition" value="1"></property>
+		<property name="rowMapper">
+			<bean class="pe.com.entel.regNomBlancoPIAS.mapper.ClienteRowMapper" />
+		</property>
+		<property name="parameters">
+			<list>
+				<bean class="org.springframework.jdbc.core.SqlParameter">
+					<constructor-arg index="0" value="acur_customer"/>
+					<constructor-arg index="1">
+						<util:constant static-field="oracle.jdbc.OracleTypes.CURSOR"/>
+					</constructor-arg>
+				</bean>
+			</list>
+		</property>
+	</bean>
+
+	<!-- PROCESSORS -->
+	<bean id="clienteItemProcessor" class="pe.com.entel.regNomBlancoPIAS.processor.ClienteItemProcessor"/>
+
+	<!-- WRITERS -->
+	<bean id="jdbcClienteItemWriter" class="org.springframework.batch.item.support.CompositeItemWriter">
+		<property name="delegates">
+			<list>
+				<ref bean="jdbcClienteItemWriterLog" />
+				<ref bean="jdbcClienteItemWriterPIAS" />
+			</list>
+		</property>
+	</bean>
+
+	<bean id="jdbcClienteItemWriterLog" class="org.springframework.batch.item.database.JdbcBatchItemWriter" scope="step">
+		<property name="dataSource" ref="dsPias"/>
+		<property name="assertUpdates" value="false"/>
+		<property name="sql">
+			<value>
+				<![CDATA[
+				CALL SWBAPPS.SP_CL_CA_REG_NOMCLIENTE(:numControlId, :vchApplication, :vchSource, :vchTipoDoc, :vchNumDoc, :numEstado, :vchApi, :vchError, :vchName, :vchFirstname, :vchLastname, :vchLastname2)
+				]]>
+			</value>
+		</property>
+		<property name="itemSqlParameterSourceProvider">
+			<bean class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider"/>
+		</property>
+	</bean>
+
+	<bean id="jdbcClienteItemWriterPIAS" class="org.springframework.batch.item.database.JdbcBatchItemWriter" scope="step">
+		<property name="dataSource" ref="dsPias"/>
+		<property name="assertUpdates" value="false"/>
+		<property name="sql">
+			<value>
+				<![CDATA[
+				CALL SWBAPPS.SP_CL_AC_NOM_BLANCO(:numControlId, :vchTipoDoc, :vchNumDoc, :vchName, :vchFirstname, :vchLastname, :vchLastname2)
+				]]>
+			</value>
+		</property>
+		<property name="itemSqlParameterSourceProvider">
+			<bean class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider"/>
+		</property>
+	</bean>
+
+	<!-- Tasklets -->
+	<bean id="taskletSuccessRegNomBlancoCSV" class="pe.com.entel.regNomBlancoPIAS.tasklet.TaskletSuccessRegNomBlancoCSV" scope="step">
+		<property name="fileName" value="#{jobParameters[fileName]}"/>
+		<property name="dirFiles" value="#{jobParameters[dirFiles]}"/>
+	</bean>
+
+	<!-- LISTENERS -->
+	<bean id="clienteChunkCountListener" class="pe.com.entel.regNomBlancoPIAS.listener.ClienteChunkCountListener" scope="step"/>
+	<bean id="clienteItemWriterListener" class="pe.com.entel.regNomBlancoPIAS.listener.ClienteItemWriterListener" scope="step"/>
+	<bean id="clienteItemReaderListener" class="pe.com.entel.regNomBlancoPIAS.listener.ClienteItemReaderListener" scope="step"/>
+
+</beans>

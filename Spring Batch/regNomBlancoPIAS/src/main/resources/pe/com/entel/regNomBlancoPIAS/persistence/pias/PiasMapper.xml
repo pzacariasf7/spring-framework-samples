@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="pe.com.entel.regNomBlancoPIAS.persistence.pias.PiasMapper">
+    <select id="buscarCliente" statementType="CALLABLE" parameterType="java.util.Map">
+        { call SWBAPPS.SP_CL_GET_UOA_CLIENTE(
+            #{tipoDoc, mode=IN, jdbcType=VARCHAR},
+            #{numDoc, mode=IN, jdbcType=VARCHAR},
+            #{name, mode=OUT, jdbcType=VARCHAR},
+            #{firstname, mode=OUT, jdbcType=VARCHAR},
+            #{lastname, mode=OUT, jdbcType=VARCHAR},
+            #{lastname2, mode=OUT, jdbcType=VARCHAR},
+            #{error, mode=OUT, jdbcType=VARCHAR}
+        )}
+    </select>
+</mapper>

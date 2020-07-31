@@ -14,4 +14,9 @@ public class Constant {
 
     public static String FILETYPE_CL = "CL";
 
+    public static String FILE_FOOTER = "**";
+
+    public static String CONFIG_LEG = "LEG";
+    public static String CONFIG_FS = "FS";
+
 }

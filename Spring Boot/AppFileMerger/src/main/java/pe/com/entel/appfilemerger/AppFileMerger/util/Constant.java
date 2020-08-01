@@ -18,5 +18,4 @@ public class Constant {
 
     public static String CONFIG_LEG = "LEG";
     public static String CONFIG_FS = "FS";
-
 }

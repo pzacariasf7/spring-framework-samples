@@ -3,9 +3,10 @@ package pe.com.entel.appfilemerger.AppFileMerger.service.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import pe.com.entel.appfilemerger.AppFileMerger.service.FileMergerService;
-import pe.com.entel.appfilemerger.AppFileMerger.util.Constant;
+import pe.com.entel.appfilemerger.AppFileMerger.util.Properties;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,27 +20,33 @@ import java.util.stream.Stream;
 @Service
 public class FileMergerServiceImpl implements FileMergerService {
 
-    private static Logger logger = LoggerFactory.getLogger(pe.com.entel.appfilemerger.AppFileMerger.service.FileMergerService.class);
+    private static Logger logger = LoggerFactory.getLogger(FileMergerServiceImpl.class);
 
     @Autowired
     SimpleDateFormat formatterYYMMdd;
 
     @Autowired
     SimpleDateFormat formatterDDMMYYYY;
+    
+    @Autowired
+    Properties properties;
 
+    @Value("${ev.filemerger.dir.cl}")
+    public String PATH_CL;
+    
     @Override
     public void processMerge(String codeOLD) throws Exception {
         logger.info("*********************************");
         logger.info("[processMerge] codeOLD=" + codeOLD);
 
-        String pathLEG = Constant.RUTA_CL + Constant.FILE_SEPARATOR + codeOLD + Constant.FILE_SEPARATOR + Constant.FOLDER_LEG;
-        String pathTDE = Constant.RUTA_CL + Constant.FILE_SEPARATOR + codeOLD + Constant.FILE_SEPARATOR + Constant.FOLDER_TDE;
-        String pathFINAL = Constant.RUTA_CL + Constant.FILE_SEPARATOR + codeOLD + Constant.FILE_SEPARATOR + Constant.FOLDER_FINAL;
+        String pathLEG = PATH_CL + codeOLD + properties.FILE_SEPARATOR + properties.FOLDER_LEG;
+        String pathTDE = PATH_CL + codeOLD + properties.FILE_SEPARATOR + properties.FOLDER_TDE;
+        String pathFINAL = PATH_CL + codeOLD + properties.FILE_SEPARATOR + properties.FOLDER_FINAL;
 
         Date date = new Date();
         String todayYYMMdd = formatterYYMMdd.format(date);
         String todayDDMMYYYY = formatterDDMMYYYY.format(date);
-        String todayPrefix = Constant.FILETYPE_CL + codeOLD + todayYYMMdd;
+        String todayPrefix = properties.FILETYPE_CL + codeOLD + todayYYMMdd;
 
         logger.info("[processMerge] pathLEG=" + pathLEG);
         logger.info("[processMerge] pathTDE=" + pathTDE);
@@ -53,9 +60,9 @@ public class FileMergerServiceImpl implements FileMergerService {
         if (listFilesLeg != null && !listFilesLeg.isEmpty() && listFilesLeg.size() == 1) {
             String fileLeg = listFilesLeg.get(0);
             logger.info("[processMerge] Existe 1 Legado: " + fileLeg);
-            String fileNameWithExt = fileLeg.substring(fileLeg.lastIndexOf(Constant.FILE_SEPARATOR)+1);
+            String fileNameWithExt = fileLeg.substring(fileLeg.lastIndexOf(properties.FILE_SEPARATOR)+1);
             logger.info("[processMerge] fileNameWithExt="+fileNameWithExt);
-            String fileNameWithoutExt = fileNameWithExt.substring(0, fileNameWithExt.lastIndexOf(Constant.FILE_EXTENSION));
+            String fileNameWithoutExt = fileNameWithExt.substring(0, fileNameWithExt.lastIndexOf(properties.FILE_EXTENSION));
             logger.info("[processMerge] fileNameWithoutExt="+fileNameWithoutExt);
             logger.info("[processMerge] Buscar en TDE " + fileNameWithExt);
             List<String> listFilesTDE = listFiles(pathTDE, fileNameWithExt);
@@ -69,14 +76,14 @@ public class FileMergerServiceImpl implements FileMergerService {
                 List<String> linesHeaderLeg, linesHeaderTDE, linesDetailLeg, linesDetailTDE, linesFooterLeg, linesFooterTDE;
 
                 linesHeaderLeg = getHeader(fileLeg, fileNameWithoutExt);
-                linesDetailLeg = getDetail(fileLeg, fileNameWithoutExt, Constant.FILE_FOOTER);
-                linesFooterLeg = getFooter(fileLeg, Constant.FILE_FOOTER);
+                linesDetailLeg = getDetail(fileLeg, fileNameWithoutExt, properties.FILE_FOOTER);
+                linesFooterLeg = getFooter(fileLeg, properties.FILE_FOOTER);
 
                 if (isValid(linesHeaderLeg, linesDetailLeg, linesFooterLeg)){
                     logList(linesDetailLeg, "DETALLE Archivo Legados");
                     linesHeaderTDE = getHeader(fileTDE, fileNameWithoutExt);
-                    linesDetailTDE = getDetail(fileTDE, fileNameWithoutExt, Constant.FILE_FOOTER);
-                    linesFooterTDE = getFooter(fileTDE, Constant.FILE_FOOTER);
+                    linesDetailTDE = getDetail(fileTDE, fileNameWithoutExt, properties.FILE_FOOTER);
+                    linesFooterTDE = getFooter(fileTDE, properties.FILE_FOOTER);
                     if (isValid(linesHeaderTDE, linesDetailTDE, linesFooterTDE)){
                         logList(linesDetailTDE, "DETALLE Archivos TDE");
                         //TODO Recorrer archivo Legados y archivo TDE
@@ -127,9 +134,9 @@ public class FileMergerServiceImpl implements FileMergerService {
         // With Java 8
         try (Stream<Path> walk = Files.walk(Paths.get(path), 1)) {
             return walk.map(x -> x.toString())
-                    .filter(f -> f.substring(f.lastIndexOf(Constant.FILE_SEPARATOR)+1).startsWith(prefix))
-                    .filter(f -> f.endsWith(Constant.FILE_EXTENSION))
-                    .filter(f -> f.substring(f.lastIndexOf(Constant.FILE_SEPARATOR)+1).length()==Constant.FILENAME_LENGTH)
+                    .filter(f -> f.substring(f.lastIndexOf(properties.FILE_SEPARATOR)+1).startsWith(prefix))
+                    .filter(f -> f.endsWith(properties.FILE_EXTENSION))
+                    .filter(f -> f.substring(f.lastIndexOf(properties.FILE_SEPARATOR)+1).length()== properties.FILENAME_LENGTH)
                     .collect(Collectors.toList());
         }
     }

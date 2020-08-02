@@ -8,16 +8,16 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import pe.com.entel.appfilemerger.AppFileMerger.service.FileMergerService;
-import pe.com.entel.appfilemerger.AppFileMerger.util.Constant;
+import pe.com.entel.appfilemerger.AppFileMerger.util.Properties;
 
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
 
 @SpringBootApplication
-public class AppfilemergerApplication implements CommandLineRunner {
+public class AppFileMergerApplication implements CommandLineRunner {
 
-	private static Logger logger = LoggerFactory.getLogger(AppfilemergerApplication.class);
+	private static Logger logger = LoggerFactory.getLogger(AppFileMergerApplication.class);
 
 	@Autowired
 	FileMergerService fileMergerService;
@@ -32,15 +32,18 @@ public class AppfilemergerApplication implements CommandLineRunner {
 		return new SimpleDateFormat("dd/MM/YYYY");
 	}
 
+	@Autowired
+	Properties properties;
+
 	public static void main(String[] args) {
-		SpringApplication.run(AppfilemergerApplication.class, args);
+		SpringApplication.run(AppFileMergerApplication.class, args);
 	}
 
 	@Override
 	public void run(String[] args) throws Exception {
 		logger.info("===================AppFileMerger INI===================");
 		try{
-			List<String> listOLD = Arrays.asList(Constant.OPERADORES.trim().split("\\|"));
+			List<String> listOLD = Arrays.asList(properties.OPERATORS.trim().split("\\|"));
 
 			for (String codeOLD: listOLD) {
 				fileMergerService.processMerge(codeOLD);

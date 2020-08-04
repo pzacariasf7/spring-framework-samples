@@ -10,13 +10,12 @@ import pe.com.entel.appfilemerger.AppFileMerger.service.FileMergerService;
 import pe.com.entel.appfilemerger.AppFileMerger.util.Properties;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -50,6 +49,7 @@ public class FileMergerServiceImpl implements FileMergerService {
                 throw new Exception((String) map.get("error"));
             } else {
                 listConfig = (List<Map<String, String>>) map.get("listConfig");
+                logger.info("[init] Lista de " + listConfig.size() + " configuraciones cargadas correctamente");
             }
         } catch(Exception ex) {
             throw ex;
@@ -58,7 +58,7 @@ public class FileMergerServiceImpl implements FileMergerService {
     
     @Override
     public void processMerge(String codeOLD) throws Exception {
-        logger.info("*********************************");
+        logger.info("************************************************************************************************");
         logger.info("[processMerge] codeOLD=" + codeOLD);
 
         String pathLEG = PATH_CL + codeOLD + properties.FILE_SEPARATOR + properties.FOLDER_LEG;
@@ -77,7 +77,7 @@ public class FileMergerServiceImpl implements FileMergerService {
         logger.info("[processMerge] Buscar en Legados " + todayPrefix);
         List<String> listFilesLeg = listFiles(pathLEG, todayPrefix);
 
-        logList(listFilesLeg, "Archivos Legados");
+        writeList(listFilesLeg, "Archivos Legados");
 
         if (listFilesLeg != null && !listFilesLeg.isEmpty() && listFilesLeg.size() == 1) {
             String fileLeg = listFilesLeg.get(0);
@@ -89,7 +89,7 @@ public class FileMergerServiceImpl implements FileMergerService {
             logger.info("[processMerge] Buscar en TDE " + fileNameWithExt);
             List<String> listFilesTDE = listFiles(pathTDE, fileNameWithExt);
 
-            logList(listFilesTDE, "Archivos TDE");
+            writeList(listFilesTDE, "Archivos TDE");
 
             if (listFilesTDE != null && !listFilesTDE.isEmpty() && listFilesTDE.size() == 1) {
                 String fileTDE = listFilesTDE.get(0);
@@ -102,14 +102,83 @@ public class FileMergerServiceImpl implements FileMergerService {
                 linesFooterLeg = getFooter(fileLeg, properties.FILE_FOOTER);
 
                 if (isValid(linesHeaderLeg, linesDetailLeg, linesFooterLeg)){
-                    logList(linesDetailLeg, "DETALLE Archivo Legados");
+                    writeList(linesDetailLeg, "DETALLE Archivo Legados");
                     linesHeaderTDE = getHeader(fileTDE, fileNameWithoutExt);
                     linesDetailTDE = getDetail(fileTDE, fileNameWithoutExt, properties.FILE_FOOTER);
                     linesFooterTDE = getFooter(fileTDE, properties.FILE_FOOTER);
-                    if (isValid(linesHeaderTDE, linesDetailTDE, linesFooterTDE)){
-                        logList(linesDetailTDE, "DETALLE Archivos TDE");
-                        //TODO Recorrer archivo Legados y archivo TDE
-                        logger.info("HOMBRES TRABAJANDO ...");
+                    if (isValid(linesHeaderTDE, linesDetailTDE, linesFooterTDE)) {
+                        writeList(linesDetailTDE, "DETALLE Archivo TDE");
+
+                        //Core
+                        List<String> linesHeaderFinal=new ArrayList<String>();
+                        List<String> linesDetailFinal=new ArrayList<String>();
+                        List<String> linesFooterFinal=new ArrayList<String>();
+                        boolean found;
+
+                        logger.info("[processMerge] Iterando detalle del archivo de legados");
+                        for (String lineDetailLeg : linesDetailLeg) {
+                            List<String> fieldsLeg = Arrays.asList(lineDetailLeg.split(properties.FIELDS_SEPARATOR));
+                            String numLeg = fieldsLeg.get(properties.PHONENUMBER_NUMPOSITION).trim();
+                            found = false;
+                            logger.info("[processMerge] -Iterando detalle del archivo de TDE para el número en legados " + numLeg);
+                            for (String lineDetailTDE : linesDetailTDE) {
+                                List<String> fieldsTDE = Arrays.asList(lineDetailTDE.split(properties.FIELDS_SEPARATOR));
+                                String numTDE = fieldsTDE.get(properties.PHONENUMBER_NUMPOSITION).trim();
+                                if(numLeg.equals(numTDE)) {
+                                    found = true;
+                                    String result = getResultByCodTrxLegTDE(fieldsLeg.get(properties.CODTRX_NUMPOSITION).trim(), fieldsTDE.get(properties.CODTRX_NUMPOSITION).trim());
+                                    logger.info("[processMerge] codTrxLeg="+fieldsLeg.get(properties.CODTRX_NUMPOSITION).trim() +
+                                            "; codTrxTDE="+fieldsTDE.get(properties.CODTRX_NUMPOSITION).trim() +
+                                            "; result="+result);
+
+                                    if(result.equals(properties.CONFIG_LEG)){
+                                        linesDetailFinal.add(lineDetailLeg);
+                                    } else if(result.equals(properties.CONFIG_TDE)){
+                                        linesDetailFinal.add(lineDetailTDE);
+                                    } else{
+                                        throw new Exception("Configuración de código de transacción no encontrada");
+                                    }
+                                    break;
+                                }
+                            }
+
+                            if (!found) {
+                                throw new Exception("Número en Legado "+numLeg+" no se encontró en TDE");
+                            }
+                        }
+
+                        for (String lineDetailTDE : linesDetailTDE) {
+                            List<String> fieldsTDE = Arrays.asList(lineDetailTDE.split(properties.FIELDS_SEPARATOR));
+                            String numTDE = fieldsTDE.get(1).trim();
+                            found = false;
+                            for (String lineDetailLeg : linesDetailLeg) {
+                                List<String> fieldsLeg = Arrays.asList(lineDetailLeg.split(properties.FIELDS_SEPARATOR));
+                                String numLeg = fieldsLeg.get(1).trim();
+                                if(numTDE.equals(numLeg)) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+
+                            if (!found) {
+                                throw new Exception("Número en TDE "+numTDE+" no se encontró en Legado");
+                            }
+                        }
+
+                        writeList(linesDetailFinal, "DETALLE Archivo Final");
+                        linesHeaderFinal.addAll(linesHeaderLeg);//TODO Armar Header
+                        writeList(linesHeaderFinal, "HEADER Archivo Final");
+                        linesFooterFinal.addAll(linesFooterLeg);
+
+                        List<String> linesFinal=new ArrayList<>();
+                        linesFinal.addAll(linesHeaderFinal);
+                        linesFinal.addAll(linesDetailFinal);
+                        linesFinal.addAll(linesFooterFinal);
+
+                        createFile(pathFINAL, fileNameWithExt, linesFinal);
+                        deleteFile(pathLEG, fileNameWithExt);
+                        deleteFile(pathTDE, fileNameWithExt);
+
                     }else{
                         logger.error("[processMerge] Formato no correcto de archivo TDE " + fileTDE);
                     }
@@ -132,7 +201,43 @@ public class FileMergerServiceImpl implements FileMergerService {
                 logger.error("[processMerge] No se encontraron archivos " + todayPrefix + " en Legados para hoy " + todayDDMMYYYY);
             }
         }
+    }
 
+    private void createFile(String path, String fileNameWithExt, List<String> lines) throws Exception {
+        String destFile = "";
+        try {
+            destFile = path + properties.FILE_SEPARATOR + fileNameWithExt;
+            Path destinationPath = Paths.get(destFile);
+            logger.info("[createFile] Creando archivo " + destFile);
+            Files.write(destinationPath, lines);
+        } catch (IOException e) {
+            logger.error("[createFile] Error: " + e.getMessage());
+            throw new Exception("No se pudo crear archivo " + destFile);
+        }
+    }
+
+    private void deleteFile(String path, String fileNameWithExt) throws Exception {
+        String file = "";
+        try {
+            file = path + properties.FILE_SEPARATOR + fileNameWithExt;
+            Path pathToDelete = Paths.get(file);
+            logger.info("[deleteFile] Eliminando archivo " + file);
+            Files.deleteIfExists(pathToDelete);
+        } catch (IOException e) {
+            logger.error("[deleteFile] Error: " + e.getMessage());
+            throw new Exception("No se pudo eliminar archivo " + file);
+        }
+    }
+
+    private String getResultByCodTrxLegTDE(String codTrxLeg, String codTrxTDE) {
+
+        for (Map config: listConfig) {
+            if(((String) config.get("CODLEG")).equals(codTrxLeg) && ((String) config.get("CODTDE")).equals(codTrxTDE)){
+                return (String)config.get("RESULT");
+            }
+        }
+
+        return "";
     }
 
     private boolean isValid(List<String> linesHeader, List<String> linesDetail, List<String> linesFooter) {
@@ -163,8 +268,8 @@ public class FileMergerServiceImpl implements FileMergerService {
         }
     }
 
-    private void logList(List<String> list, String desc) {
-        logger.info("[logList] " + desc);
+    private void writeList(List<String> list, String desc) {
+        logger.info("[writeList] " + desc);
         for (String str: list) {
             logger.info(str);
         }

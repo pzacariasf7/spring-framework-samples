@@ -46,7 +46,11 @@ public class AppFileMergerApplication implements CommandLineRunner {
 			List<String> listOLD = Arrays.asList(properties.OPERATORS.trim().split("\\|"));
 
 			for (String codeOLD: listOLD) {
-				fileMergerService.processMerge(codeOLD);
+				try{
+					fileMergerService.processMerge(codeOLD);
+				} catch (Exception e) {
+					logger.error("Error: " + e.getMessage());
+				}
 			}
 		} catch (Exception e) {
 			logger.error("Error: " + e.getMessage());

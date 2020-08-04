@@ -32,6 +32,11 @@ public class AppFileMergerApplication implements CommandLineRunner {
 		return new SimpleDateFormat("dd/MM/YYYY");
 	}
 
+	@Bean
+	public SimpleDateFormat formatterDDMMYYYYHHMMSS() {
+		return new SimpleDateFormat("dd-MM-YYYY HH:mm:ss");
+	}
+
 	@Autowired
 	Properties properties;
 

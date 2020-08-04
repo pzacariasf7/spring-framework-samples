@@ -52,4 +52,28 @@ public class Properties {
     @Value("${filemerger.field.codtrx.numposition}")
     public Integer CODTRX_NUMPOSITION;
 
+    @Value("${filemerger.field.flagApplied.numposition}")
+    public Integer FLAGAPPLIED_NUMPOSITION;
+
+    @Value("${filemerger.field.flagApplied.yes}")
+    public String FLAGAPPLIED_YES;
+
+    @Value("${filemerger.field.flagApplied.no}")
+    public String FLAGAPPLIED_NO;
+
+    @Value("${filemerger.header.dateTime.numposition}")
+    public Integer HEADER_DATETIME_NUMPOSITION;
+
+    @Value("${filemerger.header.registrynum.numposition}")
+    public Integer HEADER_REGISTRYNUM_NUMPOSITION;
+
+    @Value("${filemerger.header.appliednum.numposition}")
+    public Integer HEADER_APPLIEDNUM_NUMPOSITION;
+
+    @Value("${filemerger.header.registrynum.length}")
+    public Integer HEADER_REGISTRYNUM_LENGTH;
+
+    @Value("${filemerger.header.appliednum.length}")
+    public Integer HEADER_APPLIEDNUM_LENGTH;
+
 }

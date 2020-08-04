@@ -29,6 +29,9 @@ public class FileMergerServiceImpl implements FileMergerService {
 
     @Autowired
     SimpleDateFormat formatterDDMMYYYY;
+
+    @Autowired
+    SimpleDateFormat formatterDDMMYYYYHHMMSS;
     
     @Autowired
     Properties properties;
@@ -110,7 +113,7 @@ public class FileMergerServiceImpl implements FileMergerService {
                         writeList(linesDetailTDE, "DETALLE Archivo TDE");
 
                         //Core
-                        List<String> linesHeaderFinal=new ArrayList<String>();
+                        List<String> linesHeaderFinal;
                         List<String> linesDetailFinal=new ArrayList<String>();
                         List<String> linesFooterFinal=new ArrayList<String>();
                         boolean found;
@@ -149,11 +152,11 @@ public class FileMergerServiceImpl implements FileMergerService {
 
                         for (String lineDetailTDE : linesDetailTDE) {
                             List<String> fieldsTDE = Arrays.asList(lineDetailTDE.split(properties.FIELDS_SEPARATOR));
-                            String numTDE = fieldsTDE.get(1).trim();
+                            String numTDE = fieldsTDE.get(properties.PHONENUMBER_NUMPOSITION).trim();
                             found = false;
                             for (String lineDetailLeg : linesDetailLeg) {
                                 List<String> fieldsLeg = Arrays.asList(lineDetailLeg.split(properties.FIELDS_SEPARATOR));
-                                String numLeg = fieldsLeg.get(1).trim();
+                                String numLeg = fieldsLeg.get(properties.PHONENUMBER_NUMPOSITION).trim();
                                 if(numTDE.equals(numLeg)) {
                                     found = true;
                                     break;
@@ -166,7 +169,9 @@ public class FileMergerServiceImpl implements FileMergerService {
                         }
 
                         writeList(linesDetailFinal, "DETALLE Archivo Final");
-                        linesHeaderFinal.addAll(linesHeaderLeg);//TODO Armar Header
+
+                        linesHeaderFinal = generateHeaderFinal(linesHeaderLeg, linesDetailFinal);
+
                         writeList(linesHeaderFinal, "HEADER Archivo Final");
                         linesFooterFinal.addAll(linesFooterLeg);
 
@@ -201,6 +206,55 @@ public class FileMergerServiceImpl implements FileMergerService {
                 logger.error("[processMerge] No se encontraron archivos " + todayPrefix + " en Legados para hoy " + todayDDMMYYYY);
             }
         }
+    }
+
+    private List<String> generateHeaderFinal(List<String> linesHeaderLeg, List<String> linesDetailFinal)  throws Exception {
+        List<String> linesHeaderFinal = new ArrayList<>();
+
+        try {
+            Date date = new Date();
+            String todayDDMMYYYYHHMMSS = formatterDDMMYYYYHHMMSS.format(date);
+            logger.info("[generateHeaderFinal] todayDDMMYYYYHHMMSS=" + todayDDMMYYYYHHMMSS);
+
+            Integer registryCounter=0;
+            Integer appliedCounter=0;
+            for (String lineDetailFinal : linesDetailFinal) {
+                registryCounter++;
+                List<String> fieldsFinal = Arrays.asList(lineDetailFinal.split(properties.FIELDS_SEPARATOR));
+                String flagApplied = fieldsFinal.get(properties.FLAGAPPLIED_NUMPOSITION).trim();
+                if(flagApplied.equals(properties.FLAGAPPLIED_YES.trim())){
+                    appliedCounter++;
+                }
+            }
+            logger.info("[generateHeaderFinal] registryCounter=" + registryCounter);
+            logger.info("[generateHeaderFinal] appliedCounter=" + appliedCounter);
+
+            logger.info("[generateHeaderFinal] Generando header final");
+
+            String headerFinal = "";
+            for (String lineHeaderLeg: linesHeaderLeg) {
+                List<String> fieldsHeader = Arrays.asList(lineHeaderLeg.split(properties.FIELDS_SEPARATOR));
+                fieldsHeader.set(properties.HEADER_DATETIME_NUMPOSITION, todayDDMMYYYYHHMMSS);
+                fieldsHeader.set(properties.HEADER_REGISTRYNUM_NUMPOSITION, String.format("%0"+properties.HEADER_REGISTRYNUM_LENGTH+"d", registryCounter));
+                fieldsHeader.set(properties.HEADER_APPLIEDNUM_NUMPOSITION, String.format("%0"+properties.HEADER_APPLIEDNUM_LENGTH+"d", appliedCounter));
+                headerFinal = concatList(fieldsHeader);
+            }
+            logger.info("[generateHeaderFinal] headerFinal=" + headerFinal);
+            linesHeaderFinal.add(headerFinal);
+        } catch (Exception e) {
+            logger.error("[generateHeaderFinal] Error: " + e.getMessage());
+            throw new Exception("No se pudo crear header de archivo consolidado");
+        }
+
+        return linesHeaderFinal;
+    }
+
+    private String concatList(List<String> fieldsHeader) {
+        StringJoiner joiner = new StringJoiner(properties.FIELDS_SEPARATOR);
+        for (String fieldHeader : fieldsHeader) {
+            joiner.add(fieldHeader);
+        }
+        return joiner.toString();
     }
 
     private void createFile(String path, String fileNameWithExt, List<String> lines) throws Exception {

@@ -42,4 +42,8 @@ public class Properties {
 
     @Value("${filemerger.config.tde}")
     public String CONFIG_TDE;
+
+    @Value("${filemerger.sp.getcodtrxcl.spname}")
+    public String GET_COD_TRX_CL_SPNAME;
+
 }

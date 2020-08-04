@@ -5,15 +5,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import pe.com.entel.appfilemerger.AppFileMerger.repository.GetCodTrxCLSP;
 import pe.com.entel.appfilemerger.AppFileMerger.service.FileMergerService;
 import pe.com.entel.appfilemerger.AppFileMerger.util.Properties;
 
+import javax.annotation.PostConstruct;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -33,6 +36,25 @@ public class FileMergerServiceImpl implements FileMergerService {
 
     @Value("${ev.filemerger.dir.cl}")
     public String PATH_CL;
+
+    @Autowired
+    GetCodTrxCLSP getCodTrxCLSP;
+
+    List<Map<String, String>> listConfig;
+
+    @PostConstruct
+    public void init() throws Exception {
+        try {
+            Map<String, Object> map = getCodTrxCLSP.execute();
+            if (map.get("error") != null) {
+                throw new Exception((String) map.get("error"));
+            } else {
+                listConfig = (List<Map<String, String>>) map.get("listConfig");
+            }
+        } catch(Exception ex) {
+            throw ex;
+        }
+    }
     
     @Override
     public void processMerge(String codeOLD) throws Exception {

@@ -61,7 +61,7 @@ public class FileMergerServiceImpl implements FileMergerService {
     
     @Override
     public void processMerge(String codeOLD) throws Exception {
-        logger.info("************************************************************************************************");
+        logger.info("****************************************************************************");
         logger.info("[processMerge] codeOLD=" + codeOLD);
 
         String pathLEG = PATH_CL + codeOLD + properties.FILE_SEPARATOR + properties.FOLDER_LEG;

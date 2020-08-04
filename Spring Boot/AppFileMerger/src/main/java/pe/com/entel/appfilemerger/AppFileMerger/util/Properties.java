@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @ConfigurationProperties
-@PropertySource("file:${ev.filemerger.dir.cfg}appfilemerger.properties")
+@PropertySource("${ev.filemerger.properties}")
 public class Properties {
 
     @Value("${filemerger.operators.code}")
